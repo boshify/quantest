@@ -2,7 +2,13 @@ document.addEventListener('DOMContentLoaded', function() {
     const form = document.getElementById('backtestForm');
     
     form.addEventListener('submit', async function(e) {
-        e.preventDefault();
+        e.preventDefault(); // Prevent the default form submission
+        
+        // Show loading state
+        const submitButton = form.querySelector('button[type="submit"]');
+        const originalText = submitButton.textContent;
+        submitButton.textContent = 'Running Backtest...';
+        submitButton.disabled = true;
         
         // Collect form data
         const params = {
@@ -29,6 +35,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 body: JSON.stringify(params)
             });
 
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
             const results = await response.json();
             
             // Update metrics
@@ -40,6 +50,10 @@ document.addEventListener('DOMContentLoaded', function() {
         } catch (error) {
             console.error('Error running backtest:', error);
             alert('Error running backtest. Please check the console for details.');
+        } finally {
+            // Reset button state
+            submitButton.textContent = originalText;
+            submitButton.disabled = false;
         }
     });
 });
