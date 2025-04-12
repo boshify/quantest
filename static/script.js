@@ -1,62 +1,169 @@
 document.addEventListener('DOMContentLoaded', function() {
-    const form = document.getElementById('backtestForm');
-    
-    form.addEventListener('submit', async function(e) {
-        e.preventDefault(); // Prevent the default form submission
-        
-        // Show loading state
-        const submitButton = form.querySelector('button[type="submit"]');
-        const originalText = submitButton.textContent;
-        submitButton.textContent = 'Running Backtest...';
-        submitButton.disabled = true;
-        
-        // Collect form data
-        const params = {
-            symbol: document.getElementById('symbol').value,
-            timeframe: document.getElementById('timeframe').value,
-            limit: parseInt(document.getElementById('limit').value),
-            strategy_params: {
-                swing_period: parseInt(document.getElementById('swing_period').value),
-                external_liquidity_period: parseInt(document.getElementById('external_liquidity_period').value),
-                liquidity_threshold: parseFloat(document.getElementById('liquidity_threshold').value),
-                sweep_period: parseInt(document.getElementById('sweep_period').value),
-                mss_threshold: parseFloat(document.getElementById('mss_threshold').value),
-                tp_period: parseInt(document.getElementById('tp_period').value)
-            }
-        };
-
-        try {
-            // Run backtest
-            const response = await fetch('/backtest', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(params)
-            });
-
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-
-            const results = await response.json();
-            
-            // Update metrics
-            updateMetrics(results);
-            
-            // Update equity curve
-            updateEquityCurve(results.trades);
-            
-        } catch (error) {
-            console.error('Error running backtest:', error);
-            alert('Error running backtest. Please check the console for details.');
-        } finally {
-            // Reset button state
-            submitButton.textContent = originalText;
-            submitButton.disabled = false;
-        }
+    // Initialize tooltips
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
     });
+
+    // Fetch available symbols
+    fetchSymbols();
+    
+    // Setup range input listeners
+    setupRangeInputs();
+    
+    // Setup form submission
+    const form = document.getElementById('backtestForm');
+    form.addEventListener('submit', handleFormSubmit);
+    
+    // Setup symbol and timeframe change listeners
+    document.getElementById('symbol').addEventListener('change', updateMaxCandles);
+    document.getElementById('timeframe').addEventListener('change', updateMaxCandles);
 });
+
+async function fetchSymbols() {
+    try {
+        const response = await fetch('/api/symbols');
+        const symbols = await response.json();
+        
+        const symbolSelect = document.getElementById('symbol');
+        symbolSelect.innerHTML = '';
+        
+        symbols.forEach(symbol => {
+            const option = document.createElement('option');
+            option.value = symbol;
+            option.textContent = symbol;
+            symbolSelect.appendChild(option);
+        });
+        
+        // After loading symbols, fetch parameter descriptions
+        fetchParameterDescriptions();
+        
+        // Update max candles for the selected symbol
+        updateMaxCandles();
+    } catch (error) {
+        console.error('Error fetching symbols:', error);
+    }
+}
+
+async function fetchParameterDescriptions() {
+    try {
+        const response = await fetch('/api/param-descriptions');
+        const descriptions = await response.json();
+        
+        // Update tooltips with descriptions
+        Object.entries(descriptions).forEach(([param, description]) => {
+            const tooltip = document.querySelector(`label[for="${param}"] i`);
+            if (tooltip) {
+                tooltip.setAttribute('data-bs-toggle', 'tooltip');
+                tooltip.setAttribute('data-bs-placement', 'right');
+                tooltip.setAttribute('title', description);
+                new bootstrap.Tooltip(tooltip);
+            }
+        });
+    } catch (error) {
+        console.error('Error fetching parameter descriptions:', error);
+    }
+}
+
+async function updateMaxCandles() {
+    const symbol = document.getElementById('symbol').value;
+    const timeframe = document.getElementById('timeframe').value;
+    
+    try {
+        const response = await fetch(`/api/max-candles/${symbol}/${timeframe}`);
+        const data = await response.json();
+        
+        const limitInput = document.getElementById('limit');
+        limitInput.max = data.max_candles;
+        
+        // If current value is higher than max, adjust it
+        if (parseInt(limitInput.value) > data.max_candles) {
+            limitInput.value = data.max_candles;
+            document.getElementById('limitValue').textContent = data.max_candles;
+        }
+    } catch (error) {
+        console.error('Error fetching max candles:', error);
+    }
+}
+
+function setupRangeInputs() {
+    // Setup limit range input
+    const limitInput = document.getElementById('limit');
+    const limitValue = document.getElementById('limitValue');
+    limitInput.addEventListener('input', function() {
+        limitValue.textContent = this.value;
+    });
+    
+    // Setup liquidity threshold range input
+    const liquidityInput = document.getElementById('liquidity_threshold');
+    const liquidityValue = document.getElementById('liquidityThresholdValue');
+    liquidityInput.addEventListener('input', function() {
+        liquidityValue.textContent = this.value;
+    });
+    
+    // Setup MSS threshold range input
+    const mssInput = document.getElementById('mss_threshold');
+    const mssValue = document.getElementById('mssThresholdValue');
+    mssInput.addEventListener('input', function() {
+        mssValue.textContent = this.value;
+    });
+}
+
+async function handleFormSubmit(e) {
+    e.preventDefault();
+    
+    // Show loading state
+    const submitButton = e.target.querySelector('button[type="submit"]');
+    const originalText = submitButton.textContent;
+    submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Running Backtest...';
+    submitButton.disabled = true;
+    
+    // Collect form data
+    const params = {
+        symbol: document.getElementById('symbol').value,
+        timeframe: document.getElementById('timeframe').value,
+        limit: parseInt(document.getElementById('limit').value),
+        strategy_params: {
+            swing_period: parseInt(document.getElementById('swing_period').value),
+            external_liquidity_period: parseInt(document.getElementById('external_liquidity_period').value),
+            liquidity_threshold: parseFloat(document.getElementById('liquidity_threshold').value),
+            sweep_period: parseInt(document.getElementById('sweep_period').value),
+            mss_threshold: parseFloat(document.getElementById('mss_threshold').value),
+            tp_period: parseInt(document.getElementById('tp_period').value)
+        }
+    };
+
+    try {
+        // Run backtest
+        const response = await fetch('/backtest', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(params)
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const results = await response.json();
+        
+        // Update metrics
+        updateMetrics(results);
+        
+        // Update equity curve
+        updateEquityCurve(results.trades);
+        
+    } catch (error) {
+        console.error('Error running backtest:', error);
+        alert('Error running backtest. Please check the console for details.');
+    } finally {
+        // Reset button state
+        submitButton.innerHTML = originalText;
+        submitButton.disabled = false;
+    }
+}
 
 function updateMetrics(results) {
     const metricsDiv = document.getElementById('metrics');
@@ -133,18 +240,40 @@ function updateEquityCurve(trades) {
         y: equityData.map(d => d.pnl),
         type: 'scatter',
         mode: 'lines',
-        name: 'Equity Curve'
+        name: 'Equity Curve',
+        line: {
+            color: '#3498db',
+            width: 2
+        }
     };
     
     const layout = {
-        title: 'Equity Curve',
+        title: {
+            text: 'Equity Curve',
+            font: {
+                size: 20,
+                color: '#2c3e50'
+            }
+        },
         xaxis: {
-            title: 'Time'
+            title: 'Time',
+            gridcolor: '#ecf0f1',
+            zerolinecolor: '#ecf0f1'
         },
         yaxis: {
-            title: 'Cumulative PnL'
+            title: 'Cumulative PnL',
+            gridcolor: '#ecf0f1',
+            zerolinecolor: '#ecf0f1'
         },
-        template: 'plotly_white'
+        template: 'plotly_white',
+        paper_bgcolor: 'rgba(0,0,0,0)',
+        plot_bgcolor: 'rgba(0,0,0,0)',
+        margin: {
+            l: 50,
+            r: 50,
+            t: 50,
+            b: 50
+        }
     };
     
     Plotly.newPlot('equityCurve', [trace], layout);

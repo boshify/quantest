@@ -2,8 +2,8 @@ from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse
-from backtest import run_backtest
-from typing import Dict, Optional
+from backtest import run_backtest, get_available_symbols, get_max_candles
+from typing import Dict, Optional, List
 from pydantic import BaseModel
 
 app = FastAPI()
@@ -19,9 +19,34 @@ class BacktestParams(BaseModel):
     limit: int = 500
     strategy_params: Dict = {}
 
+# Parameter descriptions
+PARAM_DESCRIPTIONS = {
+    "symbol": "The trading pair to backtest (e.g., BTC/USDT)",
+    "timeframe": "The candle timeframe for the backtest",
+    "limit": "Number of candles to analyze",
+    "swing_period": "Period for identifying swing highs and lows",
+    "external_liquidity_period": "Period for calculating external liquidity levels",
+    "liquidity_threshold": "Threshold for identifying liquidity zones (0.99 = 1% from high/low)",
+    "sweep_period": "Period for identifying liquidity sweeps",
+    "mss_threshold": "Threshold for Market Structure Shift detection (1.5 = 50% above average)",
+    "tp_period": "Period for calculating take profit levels"
+}
+
 @app.get("/", response_class=HTMLResponse)
 async def read_root(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
+
+@app.get("/api/symbols")
+async def get_symbols():
+    return get_available_symbols()
+
+@app.get("/api/max-candles/{symbol}/{timeframe}")
+async def get_max_candles_for_symbol(symbol: str, timeframe: str):
+    return {"max_candles": get_max_candles(symbol, timeframe)}
+
+@app.get("/api/param-descriptions")
+async def get_param_descriptions():
+    return PARAM_DESCRIPTIONS
 
 @app.post("/backtest")
 async def trigger_backtest(params: BacktestParams):

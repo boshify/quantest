@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BTC Backtester</title>
+    <title>Crypto Backtester</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="{{ url_for('static', path='/styles.css') }}" rel="stylesheet">
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
 </head>
@@ -13,16 +14,20 @@
         <div class="row">
             <!-- Parameters Panel -->
             <div class="col-md-3 parameters-panel">
-                <h3>Backtest Parameters</h3>
+                <div class="panel-header">
+                    <h3><i class="fas fa-sliders-h"></i> Backtest Parameters</h3>
+                </div>
                 <form id="backtestForm">
                     <div class="mb-3">
-                        <h4>General Settings</h4>
+                        <h4><i class="fas fa-cog"></i> General Settings</h4>
                         <div class="form-group">
-                            <label for="symbol">Symbol</label>
-                            <input type="text" class="form-control" id="symbol" value="BTC/USDT">
+                            <label for="symbol">Symbol <i class="fas fa-info-circle" data-bs-toggle="tooltip" title=""></i></label>
+                            <select class="form-control" id="symbol">
+                                <option value="BTC/USDT">Loading symbols...</option>
+                            </select>
                         </div>
                         <div class="form-group">
-                            <label for="timeframe">Timeframe</label>
+                            <label for="timeframe">Timeframe <i class="fas fa-info-circle" data-bs-toggle="tooltip" title=""></i></label>
                             <select class="form-control" id="timeframe">
                                 <option value="1m">1 minute</option>
                                 <option value="5m">5 minutes</option>
@@ -33,56 +38,63 @@
                             </select>
                         </div>
                         <div class="form-group">
-                            <label for="limit">Number of Candles</label>
-                            <input type="number" class="form-control" id="limit" value="500">
+                            <label for="limit">Number of Candles <i class="fas fa-info-circle" data-bs-toggle="tooltip" title=""></i></label>
+                            <input type="range" class="form-range" id="limit" min="100" max="1000" value="500">
+                            <div class="range-value"><span id="limitValue">500</span> candles</div>
                         </div>
                     </div>
 
                     <div class="mb-3">
-                        <h4>Strategy Parameters</h4>
+                        <h4><i class="fas fa-chart-line"></i> Strategy Parameters</h4>
                         <div class="form-group">
-                            <label for="swing_period">Swing Period</label>
-                            <input type="number" class="form-control" id="swing_period" value="1">
+                            <label for="swing_period">Swing Period <i class="fas fa-info-circle" data-bs-toggle="tooltip" title=""></i></label>
+                            <input type="number" class="form-control" id="swing_period" value="1" min="1" max="10">
                         </div>
                         <div class="form-group">
-                            <label for="external_liquidity_period">External Liquidity Period</label>
-                            <input type="number" class="form-control" id="external_liquidity_period" value="50">
+                            <label for="external_liquidity_period">External Liquidity Period <i class="fas fa-info-circle" data-bs-toggle="tooltip" title=""></i></label>
+                            <input type="number" class="form-control" id="external_liquidity_period" value="50" min="10" max="200">
                         </div>
                         <div class="form-group">
-                            <label for="liquidity_threshold">Liquidity Threshold</label>
-                            <input type="number" class="form-control" id="liquidity_threshold" value="0.99" step="0.01">
+                            <label for="liquidity_threshold">Liquidity Threshold <i class="fas fa-info-circle" data-bs-toggle="tooltip" title=""></i></label>
+                            <input type="range" class="form-range" id="liquidity_threshold" min="0.95" max="0.999" step="0.001" value="0.99">
+                            <div class="range-value"><span id="liquidityThresholdValue">0.99</span></div>
                         </div>
                         <div class="form-group">
-                            <label for="sweep_period">Sweep Period</label>
-                            <input type="number" class="form-control" id="sweep_period" value="3">
+                            <label for="sweep_period">Sweep Period <i class="fas fa-info-circle" data-bs-toggle="tooltip" title=""></i></label>
+                            <input type="number" class="form-control" id="sweep_period" value="3" min="1" max="10">
                         </div>
                         <div class="form-group">
-                            <label for="mss_threshold">MSS Threshold</label>
-                            <input type="number" class="form-control" id="mss_threshold" value="1.5" step="0.1">
+                            <label for="mss_threshold">MSS Threshold <i class="fas fa-info-circle" data-bs-toggle="tooltip" title=""></i></label>
+                            <input type="range" class="form-range" id="mss_threshold" min="1.1" max="2.0" step="0.1" value="1.5">
+                            <div class="range-value"><span id="mssThresholdValue">1.5</span></div>
                         </div>
                         <div class="form-group">
-                            <label for="tp_period">Take Profit Period</label>
-                            <input type="number" class="form-control" id="tp_period" value="10">
+                            <label for="tp_period">Take Profit Period <i class="fas fa-info-circle" data-bs-toggle="tooltip" title=""></i></label>
+                            <input type="number" class="form-control" id="tp_period" value="10" min="5" max="50">
                         </div>
                     </div>
 
-                    <button type="submit" class="btn btn-primary">Run Backtest</button>
+                    <button type="submit" class="btn btn-primary btn-lg">
+                        <i class="fas fa-play"></i> Run Backtest
+                    </button>
                 </form>
             </div>
 
             <!-- Results Panel -->
             <div class="col-md-9 results-panel">
-                <h3>Backtest Results</h3>
+                <div class="panel-header">
+                    <h3><i class="fas fa-chart-bar"></i> Backtest Results</h3>
+                </div>
                 <div class="row">
                     <div class="col-md-6">
                         <div class="metrics-card">
-                            <h4>Performance Metrics</h4>
+                            <h4><i class="fas fa-tachometer-alt"></i> Performance Metrics</h4>
                             <div id="metrics"></div>
                         </div>
                     </div>
                     <div class="col-md-6">
                         <div class="metrics-card">
-                            <h4>Trade Statistics</h4>
+                            <h4><i class="fas fa-list-ol"></i> Trade Statistics</h4>
                             <div id="tradeStats"></div>
                         </div>
                     </div>
@@ -90,7 +102,7 @@
                 <div class="row mt-4">
                     <div class="col-12">
                         <div class="chart-card">
-                            <h4>Equity Curve</h4>
+                            <h4><i class="fas fa-chart-line"></i> Equity Curve</h4>
                             <div id="equityCurve"></div>
                         </div>
                     </div>

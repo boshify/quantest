@@ -1,10 +1,31 @@
 import pandas as pd
 from strategy import ict_strategy
 import ccxt
-from typing import Dict, Optional
+from typing import Dict, Optional, List
 
 # === Fetch Historical BTC Data from Binance ===
 exchange = ccxt.binance()
+
+def get_available_symbols() -> List[str]:
+    """Fetch available trading pairs from Binance"""
+    try:
+        markets = exchange.load_markets()
+        # Filter for USDT pairs and sort them
+        usdt_pairs = [symbol for symbol in markets.keys() if symbol.endswith('/USDT')]
+        return sorted(usdt_pairs)
+    except Exception as e:
+        print(f"Error fetching symbols: {e}")
+        return ["BTC/USDT"]  # Fallback to BTC/USDT
+
+def get_max_candles(symbol: str, timeframe: str) -> int:
+    """Get the maximum number of candles available for a symbol/timeframe"""
+    try:
+        # Fetch OHLCV data with a large limit to get the max available
+        ohlcv = exchange.fetch_ohlcv(symbol, timeframe=timeframe, limit=1000)
+        return len(ohlcv)
+    except Exception as e:
+        print(f"Error fetching max candles: {e}")
+        return 500  # Fallback to 500
 
 def fetch_data(symbol='BTC/USDT', timeframe='1h', limit=500):
     ohlcv = exchange.fetch_ohlcv(symbol, timeframe=timeframe, limit=limit)
