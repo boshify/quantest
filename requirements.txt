@@ -3,3 +3,5 @@ uvicorn
 pandas
 ccxt
 plotly
+jinja2
+python-multipart

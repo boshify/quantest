@@ -1,6 +1,7 @@
 import pandas as pd
 from strategy import ict_strategy
 import ccxt
+from typing import Dict, Optional
 
 # === Fetch Historical BTC Data from Binance ===
 exchange = ccxt.binance()
@@ -13,9 +14,37 @@ def fetch_data(symbol='BTC/USDT', timeframe='1h', limit=500):
     return df
 
 # === Backtest Strategy Logic ===
-def run_backtest():
-    df = fetch_data()
-    df = ict_strategy(df)
+def run_backtest(params: Optional[Dict] = None):
+    if params is None:
+        params = {}
+    
+    # Default parameters
+    default_params = {
+        'symbol': 'BTC/USDT',
+        'timeframe': '1h',
+        'limit': 500,
+        'strategy_params': {
+            'swing_period': 1,
+            'external_liquidity_period': 50,
+            'liquidity_threshold': 0.99,
+            'sweep_period': 3,
+            'mss_threshold': 1.5,
+            'tp_period': 10
+        }
+    }
+    
+    # Update default parameters with user-provided ones
+    params = {**default_params, **params}
+    strategy_params = {**default_params['strategy_params'], **params.get('strategy_params', {})}
+    
+    df = fetch_data(
+        symbol=params['symbol'],
+        timeframe=params['timeframe'],
+        limit=params['limit']
+    )
+    
+    # Pass strategy parameters to the strategy function
+    df = ict_strategy(df, strategy_params)
 
     trades = []
     position = None
@@ -58,6 +87,7 @@ def run_backtest():
         'avg_r': round(avg_r, 2),
         'profit_factor': round(profit_factor, 2),
         'net_pnl': round(net_pnl, 2),
-        'trades': trades_df.to_dict(orient='records')
+        'trades': trades_df.to_dict(orient='records'),
+        'parameters_used': params
     }
 
