@@ -160,8 +160,10 @@ async def get_symbols():
 @app.get("/api/max-candles/{symbol}/{timeframe}")
 async def get_max_candles_for_symbol(symbol: str, timeframe: str):
     try:
-        max_candles = get_max_candles(symbol, timeframe)
-        logger.info(f"Max candles for {symbol} on {timeframe}: {max_candles}")
+        # Convert the URL-safe symbol back to the exchange format
+        exchange_symbol = symbol.replace('-', '/')
+        max_candles = get_max_candles(exchange_symbol, timeframe)
+        logger.info(f"Max candles for {exchange_symbol} on {timeframe}: {max_candles}")
         return {"max_candles": max_candles}
     except Exception as e:
         logger.error(f"Error in get_max_candles_for_symbol: {str(e)}")
@@ -183,11 +185,44 @@ async def run_backtest_endpoint(params: BacktestParams):
     try:
         logger.info(f"Running backtest with params: {params}")
         results = run_backtest(params.dict())
-        return results
+        
+        # Ensure the response has all required fields
+        if not isinstance(results, dict):
+            results = {}
+            
+        # Set default values for missing fields
+        default_response = {
+            'total_trades': 0,
+            'win_rate': 0.0,
+            'avg_r': 0.0,
+            'profit_factor': 0.0,
+            'net_pnl': 0.0,
+            'trades': [],
+            'parameters_used': params.dict()
+        }
+        
+        # Merge the results with default values
+        response = {**default_response, **results}
+        
+        # Ensure numeric values are properly formatted
+        response['win_rate'] = float(response.get('win_rate', 0))
+        response['avg_r'] = float(response.get('avg_r', 0))
+        response['profit_factor'] = float(response.get('profit_factor', 0))
+        response['net_pnl'] = float(response.get('net_pnl', 0))
+        
+        return response
     except Exception as e:
         logger.error(f"Error in backtest: {str(e)}")
         logger.error(traceback.format_exc())
-        return {"error": str(e)}
+        return {
+            'total_trades': 0,
+            'win_rate': 0.0,
+            'avg_r': 0.0,
+            'profit_factor': 0.0,
+            'net_pnl': 0.0,
+            'trades': [],
+            'error': str(e)
+        }
 
 @app.get("/metrics")
 async def get_metrics(params: Optional[Dict] = None):

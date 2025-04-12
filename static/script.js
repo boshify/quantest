@@ -105,7 +105,9 @@ async function updateMaxCandles() {
     const limitValue = document.getElementById('limitValue');
     
     try {
-        const response = await fetch(`/api/max-candles/${encodeURIComponent(symbol)}/${encodeURIComponent(timeframe)}`);
+        // Replace / with - in the symbol for the URL
+        const urlSafeSymbol = symbol.replace('/', '-');
+        const response = await fetch(`/api/max-candles/${urlSafeSymbol}/${timeframe}`);
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
