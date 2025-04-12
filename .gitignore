@@ -1,20 +1,49 @@
-# Python
-__pycache__/
-*.py[cod]
-*.egg
-*.egg-info/
-dist/
-build/
-
-# Data
-data/
-*.parquet
-*.csv
-
-# VS Code / Cursor
-.vscode/
-.env
-
-# OS
+# IDE files and default extensions
+.idea
 .DS_Store
-Thumbs.db
+**/*.ipynb
+**/.ipynb_checkpoints
+**/__pycache__
+
+# Cache files
+lumibot/cache
+*cache*
+**/*.pkl
+.pytest*
+
+# Development files
+venv*
+.venv*
+logs
+*debug.py
+todos.txt
+*.pem
+test_bot.py
+.vscode
+.coverage*
+.env
+lumi_tradier
+lumiwealth_tradier
+ThetaTerminal.jar
+pytest.ini
+
+# Pypi deployment
+build
+dist
+*.egg-info
+# setup.py
+/alpaca_data_run.py
+/alpaca_run.py
+/lumibot_profiles.png
+/notebooks/scanner_parameters.xml
+/lumibot/strategies/examples/technical_analysis.py
+/technical_analysis.pyx
+/lumibot/tests/test_ib_broker.py
+test.csv
+my_dev
+/data/SPY_Minute.csv
+data/SRNE_Minute.csv
+.vscode/**
+*.tmp
+.env
+token.json
