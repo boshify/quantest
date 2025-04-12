@@ -5,6 +5,7 @@ from fastapi.responses import HTMLResponse
 from backtest import run_backtest, get_available_symbols, get_max_candles
 from typing import Dict, Optional, List
 from pydantic import BaseModel
+import logging
 
 app = FastAPI()
 
@@ -44,9 +45,56 @@ async def get_symbols():
 async def get_max_candles_for_symbol(symbol: str, timeframe: str):
     return {"max_candles": get_max_candles(symbol, timeframe)}
 
-@app.get("/api/param-descriptions")
-async def get_param_descriptions():
-    return PARAM_DESCRIPTIONS
+@app.get("/api/parameter-descriptions")
+async def get_parameter_descriptions():
+    try:
+        # Get the strategy class
+        strategy_class = get_strategy_class()
+        
+        # Get parameter descriptions from the strategy class
+        param_descriptions = {}
+        for param_name, param in strategy_class.__annotations__.items():
+            if hasattr(param, '__metadata__'):
+                for metadata in param.__metadata__:
+                    if isinstance(metadata, dict) and 'description' in metadata:
+                        param_descriptions[param_name] = metadata['description']
+                        break
+        
+        if not param_descriptions:
+            # Fallback to default descriptions if none found
+            param_descriptions = {
+                'fast_length': 'Number of periods for fast EMA',
+                'slow_length': 'Number of periods for slow EMA',
+                'signal_length': 'Number of periods for signal line',
+                'stop_loss': 'Stop loss percentage (0-100)',
+                'take_profit': 'Take profit percentage (0-100)',
+                'trailing_stop': 'Trailing stop percentage (0-100)',
+                'position_size': 'Position size as percentage of capital (0-100)',
+                'max_positions': 'Maximum number of concurrent positions',
+                'risk_per_trade': 'Risk per trade as percentage of capital (0-100)',
+                'max_drawdown': 'Maximum drawdown percentage (0-100)',
+                'timeframe': 'Trading timeframe (1m, 5m, 15m, 1h, 4h, 1d)',
+                'limit': 'Number of candles to analyze'
+            }
+        
+        return param_descriptions
+    except Exception as e:
+        logger.error(f"Error getting parameter descriptions: {str(e)}")
+        # Return default descriptions on error
+        return {
+            'fast_length': 'Number of periods for fast EMA',
+            'slow_length': 'Number of periods for slow EMA',
+            'signal_length': 'Number of periods for signal line',
+            'stop_loss': 'Stop loss percentage (0-100)',
+            'take_profit': 'Take profit percentage (0-100)',
+            'trailing_stop': 'Trailing stop percentage (0-100)',
+            'position_size': 'Position size as percentage of capital (0-100)',
+            'max_positions': 'Maximum number of concurrent positions',
+            'risk_per_trade': 'Risk per trade as percentage of capital (0-100)',
+            'max_drawdown': 'Maximum drawdown percentage (0-100)',
+            'timeframe': 'Trading timeframe (1m, 5m, 15m, 1h, 4h, 1d)',
+            'limit': 'Number of candles to analyze'
+        }
 
 @app.post("/backtest")
 async def trigger_backtest(params: BacktestParams):

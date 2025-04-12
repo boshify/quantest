@@ -1,21 +1,34 @@
 import pandas as pd
 from strategy import ict_strategy
 import ccxt
-from typing import Dict, Optional, List
+from typing import Dict, Optional, List, Any
+import numpy as np
+from datetime import datetime, timedelta
+
+# Initialize the exchange globally
+exchange = ccxt.binance({
+    'enableRateLimit': True,
+    'options': {
+        'defaultType': 'spot'
+    }
+})
 
 # === Fetch Historical BTC Data from Binance ===
-exchange = ccxt.binance()
-
 def get_available_symbols() -> List[str]:
-    """Fetch available trading pairs from Binance"""
     try:
+        # Load markets
         markets = exchange.load_markets()
-        # Filter for USDT pairs and sort them
+        
+        # Filter for USDT pairs
         usdt_pairs = [symbol for symbol in markets.keys() if symbol.endswith('/USDT')]
-        return sorted(usdt_pairs)
+        
+        # Sort the pairs
+        usdt_pairs.sort()
+        
+        return usdt_pairs
     except Exception as e:
-        print(f"Error fetching symbols: {e}")
-        return ["BTC/USDT"]  # Fallback to BTC/USDT
+        print(f"Error fetching symbols: {str(e)}")
+        return ["BTC/USDT"]  # Fallback to BTC/USDT if there's an error
 
 def get_max_candles(symbol: str, timeframe: str) -> int:
     """Get the maximum number of candles available for a symbol/timeframe"""

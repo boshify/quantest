@@ -1,9 +1,6 @@
 document.addEventListener('DOMContentLoaded', function() {
     // Initialize tooltips
-    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-    tooltipTriggerList.map(function (tooltipTriggerEl) {
-        return new bootstrap.Tooltip(tooltipTriggerEl);
-    });
+    initializeTooltips();
 
     // Fetch available symbols
     fetchSymbols();
@@ -23,31 +20,49 @@ document.addEventListener('DOMContentLoaded', function() {
 async function fetchSymbols() {
     try {
         const response = await fetch('/api/symbols');
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
         const symbols = await response.json();
         
         const symbolSelect = document.getElementById('symbol');
-        symbolSelect.innerHTML = '';
+        symbolSelect.innerHTML = ''; // Clear existing options
         
-        symbols.forEach(symbol => {
-            const option = document.createElement('option');
-            option.value = symbol;
-            option.textContent = symbol;
-            symbolSelect.appendChild(option);
-        });
-        
-        // After loading symbols, fetch parameter descriptions
-        fetchParameterDescriptions();
+        if (Array.isArray(symbols) && symbols.length > 0) {
+            symbols.forEach(symbol => {
+                const option = document.createElement('option');
+                option.value = symbol;
+                option.textContent = symbol;
+                symbolSelect.appendChild(option);
+            });
+        } else {
+            // Fallback to default symbol if no symbols are returned
+            const defaultOption = document.createElement('option');
+            defaultOption.value = 'BTC/USDT';
+            defaultOption.textContent = 'BTC/USDT';
+            symbolSelect.appendChild(defaultOption);
+        }
         
         // Update max candles for the selected symbol
         updateMaxCandles();
+        
+        // Fetch parameter descriptions after symbols are loaded
+        fetchParameterDescriptions();
     } catch (error) {
         console.error('Error fetching symbols:', error);
+        // Set default symbol on error
+        const symbolSelect = document.getElementById('symbol');
+        symbolSelect.innerHTML = '<option value="BTC/USDT">BTC/USDT</option>';
+        updateMaxCandles();
     }
 }
 
 async function fetchParameterDescriptions() {
     try {
         const response = await fetch('/api/param-descriptions');
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
         const descriptions = await response.json();
         
         // Update tooltips with descriptions
@@ -57,9 +72,11 @@ async function fetchParameterDescriptions() {
                 tooltip.setAttribute('data-bs-toggle', 'tooltip');
                 tooltip.setAttribute('data-bs-placement', 'right');
                 tooltip.setAttribute('title', description);
-                new bootstrap.Tooltip(tooltip);
             }
         });
+        
+        // Reinitialize tooltips after updating descriptions
+        initializeTooltips();
     } catch (error) {
         console.error('Error fetching parameter descriptions:', error);
     }
@@ -68,21 +85,25 @@ async function fetchParameterDescriptions() {
 async function updateMaxCandles() {
     const symbol = document.getElementById('symbol').value;
     const timeframe = document.getElementById('timeframe').value;
+    const limitInput = document.getElementById('limit');
     
     try {
-        const response = await fetch(`/api/max-candles/${symbol}/${timeframe}`);
+        const response = await fetch(`/api/max-candles/${encodeURIComponent(symbol)}/${encodeURIComponent(timeframe)}`);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
         const data = await response.json();
         
-        const limitInput = document.getElementById('limit');
-        limitInput.max = data.max_candles;
-        
-        // If current value is higher than max, adjust it
-        if (parseInt(limitInput.value) > data.max_candles) {
-            limitInput.value = data.max_candles;
-            document.getElementById('limitValue').textContent = data.max_candles;
+        if (data.max_candles) {
+            limitInput.max = data.max_candles;
+            if (parseInt(limitInput.value) > data.max_candles) {
+                limitInput.value = data.max_candles;
+            }
         }
     } catch (error) {
         console.error('Error fetching max candles:', error);
+        // Set a reasonable default max value
+        limitInput.max = 1000;
     }
 }
 
@@ -277,4 +298,24 @@ function updateEquityCurve(trades) {
     };
     
     Plotly.newPlot('equityCurve', [trace], layout);
+}
+
+function initializeTooltips() {
+    // Destroy existing tooltips first
+    const existingTooltips = document.querySelectorAll('[data-bs-toggle="tooltip"]');
+    existingTooltips.forEach(el => {
+        const tooltip = bootstrap.Tooltip.getInstance(el);
+        if (tooltip) {
+            tooltip.dispose();
+        }
+    });
+
+    // Initialize new tooltips
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.forEach(function (tooltipTriggerEl) {
+        new bootstrap.Tooltip(tooltipTriggerEl, {
+            trigger: 'hover',
+            html: true
+        });
+    });
 } 
