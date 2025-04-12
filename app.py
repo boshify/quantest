@@ -76,53 +76,11 @@ async def get_max_candles_for_symbol(symbol: str, timeframe: str):
 @app.get("/api/parameter-descriptions")
 async def get_parameter_descriptions():
     try:
-        # Get the strategy class
-        strategy_class = get_strategy_class()
-        
-        # Get parameter descriptions from the strategy class
-        param_descriptions = {}
-        for param_name, param in strategy_class.__annotations__.items():
-            if hasattr(param, '__metadata__'):
-                for metadata in param.__metadata__:
-                    if isinstance(metadata, dict) and 'description' in metadata:
-                        param_descriptions[param_name] = metadata['description']
-                        break
-        
-        if not param_descriptions:
-            # Fallback to default descriptions if none found
-            param_descriptions = {
-                'fast_length': 'Number of periods for fast EMA',
-                'slow_length': 'Number of periods for slow EMA',
-                'signal_length': 'Number of periods for signal line',
-                'stop_loss': 'Stop loss percentage (0-100)',
-                'take_profit': 'Take profit percentage (0-100)',
-                'trailing_stop': 'Trailing stop percentage (0-100)',
-                'position_size': 'Position size as percentage of capital (0-100)',
-                'max_positions': 'Maximum number of concurrent positions',
-                'risk_per_trade': 'Risk per trade as percentage of capital (0-100)',
-                'max_drawdown': 'Maximum drawdown percentage (0-100)',
-                'timeframe': 'Trading timeframe (1m, 5m, 15m, 1h, 4h, 1d)',
-                'limit': 'Number of candles to analyze'
-            }
-        
-        return param_descriptions
+        # Return the predefined parameter descriptions
+        return PARAM_DESCRIPTIONS
     except Exception as e:
         logger.error(f"Error getting parameter descriptions: {str(e)}")
-        # Return default descriptions on error
-        return {
-            'fast_length': 'Number of periods for fast EMA',
-            'slow_length': 'Number of periods for slow EMA',
-            'signal_length': 'Number of periods for signal line',
-            'stop_loss': 'Stop loss percentage (0-100)',
-            'take_profit': 'Take profit percentage (0-100)',
-            'trailing_stop': 'Trailing stop percentage (0-100)',
-            'position_size': 'Position size as percentage of capital (0-100)',
-            'max_positions': 'Maximum number of concurrent positions',
-            'risk_per_trade': 'Risk per trade as percentage of capital (0-100)',
-            'max_drawdown': 'Maximum drawdown percentage (0-100)',
-            'timeframe': 'Trading timeframe (1m, 5m, 15m, 1h, 4h, 1d)',
-            'limit': 'Number of candles to analyze'
-        }
+        return PARAM_DESCRIPTIONS
 
 @app.post("/backtest")
 async def run_backtest_endpoint(params: BacktestParams):
@@ -148,8 +106,3 @@ async def get_metrics(params: Optional[Dict] = None):
     except Exception as e:
         logger.error(f"Error in get_metrics: {str(e)}")
         return {"error": str(e)}
-
-# Helper function to get strategy class
-def get_strategy_class():
-    from strategy import ict_strategy
-    return ict_strategy.__class__
