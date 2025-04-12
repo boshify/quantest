@@ -6,10 +6,18 @@ from backtest import run_backtest, get_available_symbols, get_max_candles
 from typing import Dict, Optional, List
 from pydantic import BaseModel
 import logging
+import os
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 app = FastAPI()
 
-# Mount static files
+# Check if we're running in production (Railway)
+is_production = os.environ.get('RAILWAY_ENVIRONMENT') == 'production'
+
+# Mount static files with proper configuration
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
@@ -35,15 +43,35 @@ PARAM_DESCRIPTIONS = {
 
 @app.get("/", response_class=HTMLResponse)
 async def read_root(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
+    # Pass the scheme to the template
+    scheme = "https" if is_production else request.url.scheme
+    return templates.TemplateResponse(
+        "index.html", 
+        {
+            "request": request,
+            "scheme": scheme
+        }
+    )
 
 @app.get("/api/symbols")
 async def get_symbols():
-    return get_available_symbols()
+    try:
+        symbols = get_available_symbols()
+        logger.info(f"Returning {len(symbols)} symbols")
+        return symbols
+    except Exception as e:
+        logger.error(f"Error in get_symbols: {str(e)}")
+        return ["BTC/USDT"]
 
 @app.get("/api/max-candles/{symbol}/{timeframe}")
 async def get_max_candles_for_symbol(symbol: str, timeframe: str):
-    return {"max_candles": get_max_candles(symbol, timeframe)}
+    try:
+        max_candles = get_max_candles(symbol, timeframe)
+        logger.info(f"Max candles for {symbol} on {timeframe}: {max_candles}")
+        return {"max_candles": max_candles}
+    except Exception as e:
+        logger.error(f"Error in get_max_candles_for_symbol: {str(e)}")
+        return {"max_candles": 500}
 
 @app.get("/api/parameter-descriptions")
 async def get_parameter_descriptions():
@@ -97,17 +125,31 @@ async def get_parameter_descriptions():
         }
 
 @app.post("/backtest")
-async def trigger_backtest(params: BacktestParams):
-    results = run_backtest(params.dict())
-    return results
+async def run_backtest_endpoint(params: BacktestParams):
+    try:
+        logger.info(f"Running backtest with params: {params}")
+        results = run_backtest(params.dict())
+        return results
+    except Exception as e:
+        logger.error(f"Error in backtest: {str(e)}")
+        return {"error": str(e)}
 
 @app.get("/metrics")
 async def get_metrics(params: Optional[Dict] = None):
-    results = run_backtest(params)
-    return {
-        "total_trades": results['total_trades'],
-        "win_rate": results['win_rate'],
-        "avg_r": results['avg_r'],
-        "profit_factor": results['profit_factor'],
-        "net_pnl": results['net_pnl']
-    }
+    try:
+        results = run_backtest(params)
+        return {
+            "total_trades": results['total_trades'],
+            "win_rate": results['win_rate'],
+            "avg_r": results['avg_r'],
+            "profit_factor": results['profit_factor'],
+            "net_pnl": results['net_pnl']
+        }
+    except Exception as e:
+        logger.error(f"Error in get_metrics: {str(e)}")
+        return {"error": str(e)}
+
+# Helper function to get strategy class
+def get_strategy_class():
+    from strategy import ict_strategy
+    return ict_strategy.__class__

@@ -75,7 +75,7 @@ async function fetchSymbols() {
 
 async function fetchParameterDescriptions() {
     try {
-        const response = await fetch('/api/param-descriptions');
+        const response = await fetch('/api/parameter-descriptions');
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
