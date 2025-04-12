@@ -4,19 +4,37 @@ import ccxt
 from typing import Dict, Optional, List, Any
 import numpy as np
 from datetime import datetime, timedelta
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Initialize the exchange globally
-exchange = ccxt.binance({
-    'enableRateLimit': True,
-    'options': {
-        'defaultType': 'spot'
-    }
-})
+try:
+    exchange = ccxt.binance({
+        'enableRateLimit': True,
+        'options': {
+            'defaultType': 'spot',
+            'defaultTimeInForce': 'GTC',
+            'adjustForTimeDifference': True,
+            'recvWindow': 60000
+        }
+    })
+    logger.info("Successfully initialized Binance exchange")
+except Exception as e:
+    logger.error(f"Failed to initialize Binance exchange: {str(e)}")
+    exchange = None
 
 # === Fetch Historical BTC Data from Binance ===
 def get_available_symbols() -> List[str]:
     try:
+        if exchange is None:
+            logger.error("Exchange not initialized")
+            return ["BTC/USDT"]
+            
         # Load markets
+        logger.info("Loading markets from Binance...")
         markets = exchange.load_markets()
         
         # Filter for USDT pairs
@@ -25,19 +43,27 @@ def get_available_symbols() -> List[str]:
         # Sort the pairs
         usdt_pairs.sort()
         
+        logger.info(f"Successfully loaded {len(usdt_pairs)} USDT pairs")
         return usdt_pairs
     except Exception as e:
-        print(f"Error fetching symbols: {str(e)}")
+        logger.error(f"Error fetching symbols: {str(e)}")
         return ["BTC/USDT"]  # Fallback to BTC/USDT if there's an error
 
 def get_max_candles(symbol: str, timeframe: str) -> int:
     """Get the maximum number of candles available for a symbol/timeframe"""
     try:
+        if exchange is None:
+            logger.error("Exchange not initialized")
+            return 500
+            
         # Fetch OHLCV data with a large limit to get the max available
+        logger.info(f"Fetching max candles for {symbol} on {timeframe} timeframe")
         ohlcv = exchange.fetch_ohlcv(symbol, timeframe=timeframe, limit=1000)
-        return len(ohlcv)
+        max_candles = len(ohlcv)
+        logger.info(f"Found {max_candles} candles for {symbol}")
+        return max_candles
     except Exception as e:
-        print(f"Error fetching max candles: {e}")
+        logger.error(f"Error fetching max candles for {symbol}: {str(e)}")
         return 500  # Fallback to 500
 
 def fetch_data(symbol='BTC/USDT', timeframe='1h', limit=500):

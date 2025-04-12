@@ -18,6 +18,9 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 async function fetchSymbols() {
+    const symbolSelect = document.getElementById('symbol');
+    symbolSelect.innerHTML = '<option value="BTC/USDT">Loading symbols...</option>';
+    
     try {
         const response = await fetch('/api/symbols');
         if (!response.ok) {
@@ -25,8 +28,7 @@ async function fetchSymbols() {
         }
         const symbols = await response.json();
         
-        const symbolSelect = document.getElementById('symbol');
-        symbolSelect.innerHTML = ''; // Clear existing options
+        symbolSelect.innerHTML = ''; // Clear loading message
         
         if (Array.isArray(symbols) && symbols.length > 0) {
             symbols.forEach(symbol => {
@@ -35,25 +37,39 @@ async function fetchSymbols() {
                 option.textContent = symbol;
                 symbolSelect.appendChild(option);
             });
+            console.log(`Loaded ${symbols.length} symbols successfully`);
         } else {
             // Fallback to default symbol if no symbols are returned
             const defaultOption = document.createElement('option');
             defaultOption.value = 'BTC/USDT';
             defaultOption.textContent = 'BTC/USDT';
             symbolSelect.appendChild(defaultOption);
+            console.warn('No symbols returned from server, using default BTC/USDT');
         }
         
         // Update max candles for the selected symbol
-        updateMaxCandles();
+        await updateMaxCandles();
         
         // Fetch parameter descriptions after symbols are loaded
-        fetchParameterDescriptions();
+        await fetchParameterDescriptions();
     } catch (error) {
         console.error('Error fetching symbols:', error);
         // Set default symbol on error
-        const symbolSelect = document.getElementById('symbol');
         symbolSelect.innerHTML = '<option value="BTC/USDT">BTC/USDT</option>';
-        updateMaxCandles();
+        // Show error to user
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'alert alert-warning';
+        errorDiv.innerHTML = `
+            <i class="fas fa-exclamation-triangle"></i>
+            Failed to load trading pairs. Using default BTC/USDT.
+            <br>
+            <small>Error: ${error.message}</small>
+        `;
+        symbolSelect.parentNode.insertBefore(errorDiv, symbolSelect.nextSibling);
+        
+        // Still try to update max candles and parameter descriptions
+        await updateMaxCandles();
+        await fetchParameterDescriptions();
     }
 }
 
@@ -86,6 +102,7 @@ async function updateMaxCandles() {
     const symbol = document.getElementById('symbol').value;
     const timeframe = document.getElementById('timeframe').value;
     const limitInput = document.getElementById('limit');
+    const limitValue = document.getElementById('limitValue');
     
     try {
         const response = await fetch(`/api/max-candles/${encodeURIComponent(symbol)}/${encodeURIComponent(timeframe)}`);
@@ -98,12 +115,24 @@ async function updateMaxCandles() {
             limitInput.max = data.max_candles;
             if (parseInt(limitInput.value) > data.max_candles) {
                 limitInput.value = data.max_candles;
+                limitValue.textContent = data.max_candles;
             }
+            console.log(`Updated max candles to ${data.max_candles} for ${symbol}`);
         }
     } catch (error) {
         console.error('Error fetching max candles:', error);
         // Set a reasonable default max value
         limitInput.max = 1000;
+        // Show error to user
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'alert alert-warning';
+        errorDiv.innerHTML = `
+            <i class="fas fa-exclamation-triangle"></i>
+            Failed to load maximum candles. Using default value of 1000.
+            <br>
+            <small>Error: ${error.message}</small>
+        `;
+        limitInput.parentNode.insertBefore(errorDiv, limitInput.nextSibling);
     }
 }
 
